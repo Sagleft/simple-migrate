@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 )
 
 // NewMigrationHandler - create new migration handler.
@@ -95,7 +96,31 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 		return err
 	}
 
-	// EXEC SCRIPT
+	// split script
+	scriptsQuery := strings.Split(string(fileBytes), ";")
+	for _, sqlQuery := range scriptsQuery {
+		// EXEC SCRIPT
+		err := m.runTx(sqlQuery)
+		if err != nil {
+			return err
+		}
+	}
+
+	// update version
+	sqlQuery := "INSERT INTO " + versionsTableName + " SET name=?"
+	_, err = m.Data.DBDriver.Exec(sqlQuery, scriptName)
+	if err != nil {
+		return errors.New("failed to exec query: " + err.Error())
+	}
+	return nil
+}
+
+func (m *MigrationHandler) runTx(sqlQuery string) error {
+	if sqlQuery == "" {
+		// skip empty script
+		return nil
+	}
+
 	// begin tx
 	tx, err := m.Data.DBDriver.Begin()
 	if err != nil {
@@ -103,7 +128,7 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 	}
 
 	// exec query
-	_, err = tx.Exec(string(fileBytes))
+	_, err = tx.Exec(sqlQuery)
 	if err != nil {
 		return errors.New("failed to exec script: " + err.Error())
 	}
@@ -113,13 +138,6 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 	if err != nil {
 		tx.Rollback()
 		return errors.New("failed to commit tx: " + err.Error())
-	}
-
-	// update version
-	sqlQuery := "INSERT INTO " + versionsTableName + " SET name=?"
-	_, err = m.Data.DBDriver.Exec(sqlQuery, scriptName)
-	if err != nil {
-		return errors.New("failed to exec query: " + err.Error())
 	}
 	return nil
 }
