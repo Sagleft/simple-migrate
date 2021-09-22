@@ -31,7 +31,7 @@ func (m *MigrationHandler) getMigrationFiles() ([]string, error) {
 }
 
 func (m *MigrationHandler) isVersionsTableExists() (bool, error) {
-	sqlQuery := "SHOW TABLES FROM indicators LIKE 'strategies'"
+	sqlQuery := "SHOW TABLES FROM " + m.Data.DBName + " LIKE 'versions'"
 	rows, err := m.Data.DBDriver.Query(sqlQuery)
 	if err != nil {
 		return false, errors.New("failed to check 'versions' exists: " + err.Error())
