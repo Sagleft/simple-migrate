@@ -84,7 +84,12 @@ func (m *MigrationHandler) excludeUsedMigrations(
 }
 
 func (m *MigrationHandler) runScript(scriptName string) error {
-	// TODO: read sql from file
+	// read sql from file
+	fileBytes, err := readFile(m.Data.ScriptsDir + scriptName)
+	if err != nil {
+		return err
+	}
+
 	// TODO: exec script
 	// TODO: update version used
 	return nil
