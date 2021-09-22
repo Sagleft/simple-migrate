@@ -3,9 +3,11 @@ package simplemigrate
 import (
 	"errors"
 	"io/ioutil"
+	"path/filepath"
 )
 
-// NewMigrationHandler - create new migration handler
+// NewMigrationHandler - create new migration handler.
+// dir with slash. for example: ./migrations/
 func NewMigrationHandler(task MigrationTask) *MigrationHandler {
 	return &MigrationHandler{
 		Data: task,
@@ -25,8 +27,11 @@ func (m *MigrationHandler) getMigrationFiles() ([]string, error) {
 	}
 	scripts := []string{}
 	for _, f := range files {
-		scripts = append(scripts, f.Name())
+		if !f.IsDir() && filepath.Ext(f.Name()) == scriptsExtension {
+			scripts = append(scripts, f.Name())
+		}
 	}
+
 	return scripts, nil
 }
 
@@ -84,9 +89,38 @@ func (m *MigrationHandler) excludeUsedMigrations(
 }
 
 func (m *MigrationHandler) runScript(scriptName string) error {
-	// TODO: read sql from file
-	// TODO: exec script
-	// TODO: update version used
+	// read sql from file
+	fileBytes, err := readFile(m.Data.ScriptsDir + scriptName)
+	if err != nil {
+		return err
+	}
+
+	// EXEC SCRIPT
+	// begin tx
+	tx, err := m.Data.DBDriver.Begin()
+	if err != nil {
+		return errors.New("failed to begin tx: " + err.Error())
+	}
+
+	// exec query
+	_, err = tx.Exec(string(fileBytes))
+	if err != nil {
+		return errors.New("failed to exec script: " + err.Error())
+	}
+
+	// commit tx
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return errors.New("failed to commit tx: " + err.Error())
+	}
+
+	// update version
+	sqlQuery := "INSERT INTO " + versionsTableName + " SET name=?"
+	_, err = m.Data.DBDriver.Exec(sqlQuery, scriptName)
+	if err != nil {
+		return errors.New("failed to exec query: " + err.Error())
+	}
 	return nil
 }
 
