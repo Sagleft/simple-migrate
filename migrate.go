@@ -116,7 +116,7 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 }
 
 func (m *MigrationHandler) runTx(sqlQuery string) error {
-	if sqlQuery == "" {
+	if sqlQuery == "" || sqlQuery == "\n" {
 		// skip empty script
 		return nil
 	}
