@@ -42,35 +42,73 @@ func (m *MigrationHandler) isVersionsTableExists() (bool, error) {
 	return false, nil
 }
 
-func (m *MigrationHandler) getDBUsedMigrations() ([]string, error) {
+// script name -> empty struct
+func (m *MigrationHandler) getDBUsedMigrations() (map[string]struct{}, error) {
+	result := map[string]struct{}{}
 	tableExists, err := m.isVersionsTableExists()
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 	if !tableExists {
-		return []string{}, nil
+		return result, nil
 	}
 
-	sqlQuery := "SELECT name FROM " + versionsTableName
+	sqlQuery := "SELECT name FROM " + versionsTableName + " ORDER BY created"
 	rows, err := m.Data.DBDriver.Query(sqlQuery)
 	if err != nil {
-		return nil, errors.New("failed to select migration versions from db: " + err.Error())
+		return result, errors.New("failed to select migration versions from db: " + err.Error())
 	}
-	versions := []string{}
 	for rows.Next() {
 		versionName := ""
 		err := rows.Scan(&versionName)
 		if err != nil {
-			return nil, errors.New("failed to scan version name: " + err.Error())
+			return result, errors.New("failed to scan version name: " + err.Error())
 		}
-		versions = append(versions, versionName)
+		result[versionName] = struct{}{}
 	}
-	return versions, nil
+	return result, nil
+}
+
+func (m *MigrationHandler) excludeUsedMigrations(
+	scriptsFromFolder []string,
+	usedMigrations map[string]struct{},
+) []string {
+	newMigrations := []string{}
+	for _, scriptName := range scriptsFromFolder {
+		_, scriptUsed := usedMigrations[scriptName]
+		if !scriptUsed {
+			newMigrations = append(newMigrations, scriptName)
+		}
+	}
+	return newMigrations
+}
+
+func (m *MigrationHandler) runScript(scriptName string) error {
+	// TODO: read sql from file
+	// TODO: exec script
+	// TODO: update version used
+	return nil
 }
 
 // Run migrations
 func (m *MigrationHandler) Run() error {
-	// getDBUsedMigrations
+	files, err := m.getMigrationFiles()
+	if err != nil {
+		return err
+	}
+
+	usedMigrations, err := m.getDBUsedMigrations()
+	if err != nil {
+		return err
+	}
+
+	migrations := m.excludeUsedMigrations(files, usedMigrations)
+	for _, scriptName := range migrations {
+		err := m.runScript(scriptName)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
