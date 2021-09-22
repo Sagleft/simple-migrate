@@ -31,10 +31,10 @@ func (m *MigrationHandler) getMigrationFiles() ([]string, error) {
 }
 
 func (m *MigrationHandler) isVersionsTableExists() (bool, error) {
-	sqlQuery := "SHOW TABLES FROM " + m.Data.DBName + " LIKE 'versions'"
+	sqlQuery := "SHOW TABLES FROM " + m.Data.DBName + " LIKE '" + versionsTableName + "'"
 	rows, err := m.Data.DBDriver.Query(sqlQuery)
 	if err != nil {
-		return false, errors.New("failed to check 'versions' exists: " + err.Error())
+		return false, errors.New("failed to check '" + versionsTableName + "' exists: " + err.Error())
 	}
 	for rows.Next() {
 		return true, nil
@@ -42,12 +42,35 @@ func (m *MigrationHandler) isVersionsTableExists() (bool, error) {
 	return false, nil
 }
 
-func (m *MigrationHandler) getDBUsedMigrations() {
+func (m *MigrationHandler) getDBUsedMigrations() ([]string, error) {
+	tableExists, err := m.isVersionsTableExists()
+	if err != nil {
+		return nil, err
+	}
+	if !tableExists {
+		return []string{}, nil
+	}
 
+	sqlQuery := "SELECT name FROM " + versionsTableName
+	rows, err := m.Data.DBDriver.Query(sqlQuery)
+	if err != nil {
+		return nil, errors.New("failed to select migration versions from db: " + err.Error())
+	}
+	versions := []string{}
+	for rows.Next() {
+		versionName := ""
+		err := rows.Scan(&versionName)
+		if err != nil {
+			return nil, errors.New("failed to scan version name: " + err.Error())
+		}
+		versions = append(versions, versionName)
+	}
+	return versions, nil
 }
 
 // Run migrations
 func (m *MigrationHandler) Run() error {
-	// TODO
+	// getDBUsedMigrations
+
 	return nil
 }
