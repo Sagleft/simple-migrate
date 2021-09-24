@@ -19,3 +19,12 @@ Usage:
     // handle error
   }
 ```
+
+The 'migrations' folder should contain the ".sql" files with the migrations.
+For example:
+
+```
+000_tables.sql
+001_modify_users.sql
+002_add_counter.sql
+```
