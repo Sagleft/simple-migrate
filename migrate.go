@@ -136,7 +136,10 @@ func (m *MigrationHandler) runTx(sqlQuery string) error {
 	// commit tx
 	err = tx.Commit()
 	if err != nil {
-		tx.Rollback()
+		rErr := tx.Rollback()
+		if rErr != nil {
+			return errors.New("failed to finish tx & rollback: " + rErr.Error())
+		}
 		return errors.New("failed to commit tx: " + err.Error())
 	}
 	return nil
