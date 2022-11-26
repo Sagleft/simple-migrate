@@ -98,7 +98,7 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 	}
 
 	// split script
-	scriptsQuery := strings.Split(string(fileBytes), ";")
+	scriptsQuery := strings.Split(string(fileBytes), queryDelimiter)
 	for _, sqlQuery := range scriptsQuery {
 		// EXEC SCRIPT
 		err := m.runTx(sqlQuery)
