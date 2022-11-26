@@ -2,6 +2,7 @@ package simplemigrate
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,7 @@ func (m *MigrationHandler) getMigrationFiles() ([]string, error) {
 	// get files list
 	files, err := ioutil.ReadDir(m.Data.ScriptsDir)
 	if err != nil {
-		return nil, errors.New("failed to scan dir: " + err.Error())
+		return nil, fmt.Errorf("failed to scan dir: %w", err)
 	}
 	scripts := []string{}
 	for _, f := range files {
@@ -40,7 +41,7 @@ func (m *MigrationHandler) isVersionsTableExists() (bool, error) {
 	sqlQuery := "SHOW TABLES FROM " + m.Data.DBName + " LIKE '" + versionsTableName + "'"
 	rows, err := m.Data.DBDriver.Query(sqlQuery)
 	if err != nil {
-		return false, errors.New("failed to check '" + versionsTableName + "' exists: " + err.Error())
+		return false, fmt.Errorf("failed to check %q exists: %w", versionsTableName, err)
 	}
 	for rows.Next() {
 		return true, nil
@@ -62,13 +63,13 @@ func (m *MigrationHandler) getDBUsedMigrations() (map[string]struct{}, error) {
 	sqlQuery := "SELECT name FROM " + versionsTableName + " ORDER BY created"
 	rows, err := m.Data.DBDriver.Query(sqlQuery)
 	if err != nil {
-		return result, errors.New("failed to select migration versions from db: " + err.Error())
+		return result, fmt.Errorf("failed to select migration versions from db: %w", err)
 	}
 	for rows.Next() {
 		versionName := ""
 		err := rows.Scan(&versionName)
 		if err != nil {
-			return result, errors.New("failed to scan version name: " + err.Error())
+			return result, fmt.Errorf("failed to scan version name: %w", err)
 		}
 		result[versionName] = struct{}{}
 	}
@@ -110,7 +111,7 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 	sqlQuery := "INSERT INTO " + versionsTableName + " SET name=?"
 	_, err = m.Data.DBDriver.Exec(sqlQuery, scriptName)
 	if err != nil {
-		return errors.New("failed to exec query: " + err.Error())
+		return fmt.Errorf("failed to exec query: %w", err)
 	}
 	return nil
 }
@@ -124,13 +125,13 @@ func (m *MigrationHandler) runTx(sqlQuery string) error {
 	// begin tx
 	tx, err := m.Data.DBDriver.Begin()
 	if err != nil {
-		return errors.New("failed to begin tx: " + err.Error())
+		return fmt.Errorf("failed to begin tx: %w", err)
 	}
 
 	// exec query
 	_, err = tx.Exec(sqlQuery)
 	if err != nil {
-		return errors.New("failed to exec script: " + err.Error())
+		return fmt.Errorf("failed to exec script: %w", err)
 	}
 
 	// commit tx
@@ -138,9 +139,9 @@ func (m *MigrationHandler) runTx(sqlQuery string) error {
 	if err != nil {
 		rErr := tx.Rollback()
 		if rErr != nil {
-			return errors.New("failed to finish tx & rollback: " + rErr.Error())
+			return fmt.Errorf("failed to finish tx & rollback: %w", err)
 		}
-		return errors.New("failed to commit tx: " + err.Error())
+		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 	return nil
 }

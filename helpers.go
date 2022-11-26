@@ -1,14 +1,14 @@
 package simplemigrate
 
 import (
-	"errors"
+	"fmt"
 	"io/ioutil"
 )
 
 func readFile(filepath string) ([]byte, error) {
 	fileBytes, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return nil, errors.New("failed to read file: " + err.Error())
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 	return fileBytes, err
 }
