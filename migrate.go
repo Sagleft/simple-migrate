@@ -101,7 +101,7 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 	scriptsQuery := strings.Split(string(fileBytes), queryDelimiter)
 	for _, sqlQuery := range scriptsQuery {
 		// EXEC SCRIPT
-		err := m.runTx(sqlQuery)
+		err := m.runTx(scriptName, sqlQuery)
 		if err != nil {
 			return err
 		}
@@ -111,12 +111,12 @@ func (m *MigrationHandler) runScript(scriptName string) error {
 	sqlQuery := "INSERT INTO " + versionsTableName + " SET name=?"
 	_, err = m.Data.DBDriver.Exec(sqlQuery, scriptName)
 	if err != nil {
-		return fmt.Errorf("failed to exec query: %w", err)
+		return fmt.Errorf("failed to save last used script entry: %w", err)
 	}
 	return nil
 }
 
-func (m *MigrationHandler) runTx(sqlQuery string) error {
+func (m *MigrationHandler) runTx(scriptName string, sqlQuery string) error {
 	if sqlQuery == "" || sqlQuery == "\n" {
 		// skip empty script
 		return nil
@@ -125,13 +125,13 @@ func (m *MigrationHandler) runTx(sqlQuery string) error {
 	// begin tx
 	tx, err := m.Data.DBDriver.Begin()
 	if err != nil {
-		return fmt.Errorf("failed to begin tx: %w", err)
+		return fmt.Errorf("failed to begin tx for script %q: %w", scriptName, err)
 	}
 
 	// exec query
 	_, err = tx.Exec(sqlQuery)
 	if err != nil {
-		return fmt.Errorf("failed to exec script: %w", err)
+		return fmt.Errorf("failed to exec script %q: %w", scriptName, err)
 	}
 
 	// commit tx
@@ -139,9 +139,9 @@ func (m *MigrationHandler) runTx(sqlQuery string) error {
 	if err != nil {
 		rErr := tx.Rollback()
 		if rErr != nil {
-			return fmt.Errorf("failed to finish tx & rollback: %w", err)
+			return fmt.Errorf("failed to finish tx & rollback script %q: %w", scriptName, err)
 		}
-		return fmt.Errorf("failed to commit tx: %w", err)
+		return fmt.Errorf("failed to commit script %q tx: %w", scriptName, err)
 	}
 	return nil
 }
