@@ -131,14 +131,23 @@ func (m *MigrationHandler) runTx(scriptName string, sqlQuery string) error {
 	// exec query
 	_, err = tx.Exec(sqlQuery)
 	if err != nil {
+		if rErr := tx.Rollback(); rErr != nil {
+			return fmt.Errorf(
+				"failed to finish tx & rollback script %q: %w. after exec: %w",
+				scriptName, rErr, err,
+			)
+		}
 		return fmt.Errorf("failed to exec script %q: %w", scriptName, err)
 	}
 
 	// commit tx
 	err = tx.Commit()
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return fmt.Errorf("failed to finish tx & rollback script %q: %w", scriptName, err)
+		if rErr := tx.Rollback(); rErr != nil {
+			return fmt.Errorf(
+				"failed to finish tx & rollback script %q: %w. after commit: %w",
+				scriptName, rErr, err,
+			)
 		}
 		return fmt.Errorf("failed to commit script %q tx: %w", scriptName, err)
 	}
